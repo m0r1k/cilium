@@ -7,7 +7,9 @@ import (
 	"slices"
 	"strings"
 
+	envoy_config_core "github.com/cilium/proxy/go/envoy/config/core/v3"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -107,4 +109,25 @@ func hostnameMatchesWildcardHostname(hostname, wildcardHostname string) bool {
 
 	wildcardMatch := strings.TrimSuffix(hostname, strings.TrimPrefix(wildcardHostname, allHosts))
 	return len(wildcardMatch) > 0
+}
+
+func GetInternalListenerCIDRs(ipv4, ipv6 bool) []*envoy_config_core.CidrRange {
+	var res []*envoy_config_core.CidrRange
+
+	if ipv4 {
+		res = append(res,
+			[]*envoy_config_core.CidrRange{
+				{AddressPrefix: "10.0.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 8}},
+				{AddressPrefix: "172.16.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 12}},
+				{AddressPrefix: "192.168.0.0", PrefixLen: &wrapperspb.UInt32Value{Value: 16}},
+				{AddressPrefix: "127.0.0.1", PrefixLen: &wrapperspb.UInt32Value{Value: 32}}}...)
+	}
+
+	if ipv6 {
+		res = append(res, &envoy_config_core.CidrRange{
+			AddressPrefix: "::1",
+			PrefixLen:     &wrapperspb.UInt32Value{Value: 128},
+		})
+	}
+	return res
 }
