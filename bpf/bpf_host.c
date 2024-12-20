@@ -1356,7 +1356,9 @@ drop_err:
 __section_entry
 int cil_from_host(struct __ctx_buff *ctx)
 {
-	__be16 proto = 0;
+	__be16 proto __maybe_unused = 0;
+	__s8 ext_err = 0;
+	int ret;
 
 	/* Traffic from the host ns going through cilium_host device must
 	 * not be subject to EDT rate-limiting.
@@ -1379,6 +1381,18 @@ int cil_from_host(struct __ctx_buff *ctx)
 		return CTX_ACT_OK;
 #endif /* ENABLE_HOST_FIREWALL */
 	}
+
+	ret = tail_call_internal(ctx, CILIUM_CALL_DO_NETDEV_EGRESS, &ext_err);
+	return send_drop_notify_error_ext(ctx, HOST_ID, ret, ext_err,
+								CTX_ACT_DROP, METRIC_EGRESS);
+}
+
+__section_tail(CILIUM_MAP_CALLS, CILIUM_CALL_DO_NETDEV_EGRESS)
+int tail_handle_do_netdev_egress(struct __ctx_buff *ctx)
+{
+	__be16 proto = 0;
+
+	validate_ethertype(ctx, &proto);
 
 	return do_netdev(ctx, proto, true);
 }
